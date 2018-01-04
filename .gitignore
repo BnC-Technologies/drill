@@ -10,7 +10,6 @@ TAGS
 *.iml
 target/
 *.DS_Store
-*.patch
 *~
 git.properties
 contrib/native/client/build/
