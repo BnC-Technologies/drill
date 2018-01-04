@@ -8,6 +8,7 @@ TAGS
 *.log
 *.lck
 *.iml
+*.patch
 target/
 *.DS_Store
 *~
