@@ -99,7 +99,7 @@ public class MongoStoragePlugin extends AbstractStoragePlugin {
 
   @Override
   public Set<StoragePluginOptimizerRule> getPhysicalOptimizerRules(OptimizerRulesContext optimizerRulesContext) {
-    return ImmutableSet.of(MongoPushDownFilterForScan.INSTANCE);
+    return ImmutableSet.of(MongoPushDownFilterForScan.getFilterOnProject(),MongoPushDownFilterForScan.getFilterOnScan());
   }
 
 
