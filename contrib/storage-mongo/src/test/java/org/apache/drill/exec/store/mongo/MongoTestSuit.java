@@ -128,7 +128,7 @@ public class MongoTestSuit implements MongoTestConstants {
           .build();
 
       IMongodConfig mongodConfig = new MongodConfigBuilder()
-          .version(Version.Main.PRODUCTION)
+          .version(Version.Main.V3_2)
           .net(new Net(LOCALHOST, configServerPort, Network.localhostIsIPv6()))
           .configServer(flag).cmdOptions(cmdOptions).build();
       return mongodConfig;
@@ -142,7 +142,7 @@ public class MongoTestSuit implements MongoTestConstants {
 
       Storage replication = new Storage(null, replicaName, 0);
       IMongodConfig mongodConfig = new MongodConfigBuilder()
-          .version(Version.Main.PRODUCTION)
+          .version(Version.Main.V3_2)
           .net(new Net(LOCALHOST, mongodPort, Network.localhostIsIPv6()))
           .configServer(flag).replication(replication).cmdOptions(cmdOptions)
           .build();
@@ -155,7 +155,7 @@ public class MongoTestSuit implements MongoTestConstants {
           .build();
 
       IMongosConfig mongosConfig = new MongosConfigBuilder()
-          .version(Version.Main.PRODUCTION)
+          .version(Version.Main.V3_2)
           .net(new Net(LOCALHOST, MONGOS_PORT, Network.localhostIsIPv6()))
           .configDB(LOCALHOST + ":" + CONFIG_SERVER_PORT)
           .cmdOptions(cmdOptions).build();
@@ -180,7 +180,7 @@ public class MongoTestSuit implements MongoTestConstants {
           .enableAuth(authEnabled).build();
 
       IMongodConfig mongodConfig = new MongodConfigBuilder()
-          .version(Version.Main.PRODUCTION)
+          .version(Version.Main.V3_2)
           .net(new Net(LOCALHOST, MONGOS_PORT, Network.localhostIsIPv6()))
           .cmdOptions(cmdOptions).build();
 

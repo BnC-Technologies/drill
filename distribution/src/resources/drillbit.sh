@@ -143,9 +143,7 @@ start_bit ( )
   echo "Starting $command, logging to $logout"
   echo "`date` Starting $command on `hostname`" >> "$DRILLBIT_LOG_PATH"
   echo "`ulimit -a`" >> "$DRILLBIT_LOG_PATH" 2>&1
-  nohup nice -n $DRILL_NICENESS "$DRILL_HOME/bin/runbit" exec ${args[@]} >> "$logout" 2>&1 &
-  echo $! > $pid
-  sleep 1
+  $DRILL_HOME/bin/runbit exec ${args[@]}
 }
 
 stop_bit ( )

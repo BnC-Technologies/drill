@@ -126,9 +126,9 @@ public abstract class MongoPushDownFilterForScan extends StoragePluginOptimizerR
             throw new DrillRuntimeException(e.getMessage(), e);
         }
         newGroupsScan.setFilterPushedDown(true);
-
-        final ScanPrel newScanPrel = ScanPrel.create(scan, filter.getTraitSet(),
-                newGroupsScan, scan.getRowType());
+        RelNode relNode = project!=null ?project:scan;
+        final ScanPrel newScanPrel = ScanPrel.create(relNode, filter.getTraitSet(),
+                newGroupsScan, relNode.getRowType());
         if (mongoFilterBuilder.isAllExpressionsConverted()) {
             /*
              * Since we could convert the entire filter condition expression into an
