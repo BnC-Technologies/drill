@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,21 +17,7 @@
  */
 package org.apache.drill.exec.coord.zk;
 
-import static com.google.common.base.Throwables.propagate;
-import static com.google.common.collect.Collections2.transform;
-
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import com.google.common.collect.Lists;
+import com.google.common.base.Function;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
@@ -55,7 +41,18 @@ import org.apache.drill.exec.coord.store.TransientStoreConfig;
 import org.apache.drill.exec.coord.store.TransientStoreFactory;
 import org.apache.drill.exec.proto.CoordinationProtos.DrillbitEndpoint;
 
-import com.google.common.base.Function;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static com.google.common.base.Throwables.propagate;
+import static com.google.common.collect.Collections2.transform;
 
 /**
  * Manages cluster coordination utilizing zookeeper. *
@@ -73,7 +70,7 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
 
   private static final Pattern ZK_COMPLEX_STRING = Pattern.compile("(^.*?)/(.*)/([^/]*)$");
 
-  public ZKClusterCoordinator(DrillConfig config) throws IOException{
+  public ZKClusterCoordinator(DrillConfig config) throws IOException {
     this(config, null);
   }
 
@@ -85,7 +82,7 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
 
     // check if this is a complex zk string.  If so, parse into components.
     Matcher m = ZK_COMPLEX_STRING.matcher(connect);
-    if(m.matches()) {
+    if (m.matches()) {
       connect = m.group(1);
       zkRoot = m.group(2);
       clusterId = m.group(3);
@@ -95,13 +92,13 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
 
     this.serviceName = clusterId;
     RetryPolicy rp = new RetryNTimes(config.getInt(ExecConstants.ZK_RETRY_TIMES),
-      config.getInt(ExecConstants.ZK_RETRY_DELAY));
+            config.getInt(ExecConstants.ZK_RETRY_DELAY));
     curator = CuratorFrameworkFactory.builder()
-      .namespace(zkRoot)
-      .connectionTimeoutMs(config.getInt(ExecConstants.ZK_TIMEOUT))
-      .retryPolicy(rp)
-      .connectString(connect)
-      .build();
+            .namespace(zkRoot)
+            .connectionTimeoutMs(config.getInt(ExecConstants.ZK_TIMEOUT))
+            .retryPolicy(rp)
+            .connectString(connect)
+            .build();
     curator.getConnectionStateListenable().addListener(new InitialConnectionListener());
     curator.start();
     discovery = newDiscovery();
@@ -117,29 +114,29 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
     logger.debug("Starting ZKClusterCoordination.");
     discovery.start();
 
-    if(millisToWait != 0) {
+    if (millisToWait != 0) {
       boolean success = this.initialConnection.await(millisToWait, TimeUnit.MILLISECONDS);
       if (!success) {
         throw new IOException(String.format("Failure to connect to the zookeeper cluster service within the allotted time of %d milliseconds.", millisToWait));
       }
-    }else{
+    } else {
       this.initialConnection.await();
     }
 
     serviceCache = discovery
-        .serviceCacheBuilder()
-        .name(serviceName)
-        .build();
+            .serviceCacheBuilder()
+            .name(serviceName)
+            .build();
     serviceCache.addListener(new EndpointListener());
     serviceCache.start();
     updateEndpoints();
   }
 
-  private class InitialConnectionListener implements ConnectionStateListener{
+  private class InitialConnectionListener implements ConnectionStateListener {
 
     @Override
     public void stateChanged(CuratorFramework client, ConnectionState newState) {
-      if(newState == ConnectionState.CONNECTED) {
+      if (newState == ConnectionState.CONNECTED) {
         ZKClusterCoordinator.this.initialConnection.countDown();
         client.getConnectionStateListenable().removeListener(this);
       }
@@ -149,7 +146,8 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
 
   private class EndpointListener implements ServiceCacheListener {
     @Override
-    public void stateChanged(CuratorFramework client, ConnectionState newState) { }
+    public void stateChanged(CuratorFramework client, ConnectionState newState) {
+    }
 
     @Override
     public void cacheChanged() {
@@ -169,7 +167,21 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
   @Override
   public RegistrationHandle register(DrillbitEndpoint data) {
     try {
-      ServiceInstance<DrillbitEndpoint> serviceInstance = newServiceInstance(data);
+      String envVar = System.getenv("PUBLIC_HOST");
+      String address = (envVar != null) ? envVar : data.getAddress();
+      envVar = System.getenv("PUBLIC_PORT_31010");
+      Integer userPort = (envVar != null) ? Integer.parseInt(envVar) : data.getUserPort();
+      envVar = System.getenv("PUBLIC_PORT_31011");
+      Integer serverPort = (envVar != null) ? Integer.parseInt(envVar) : data.getControlPort();
+      envVar = System.getenv("PUBLIC_PORT_31012");
+      Integer dataPort = (envVar != null) ? Integer.parseInt(envVar) : data.getDataPort();
+      DrillbitEndpoint dataForZookeeper = DrillbitEndpoint.newBuilder(data)
+              .setAddress(address)
+              .setUserPort(userPort)
+              .setControlPort(serverPort)
+              .setDataPort(dataPort)
+              .build();
+      ServiceInstance<DrillbitEndpoint> serviceInstance = newServiceInstance(dataForZookeeper);
       discovery.registerService(serviceInstance);
       return new ZKRegistrationHandle(serviceInstance.getId());
     } catch (Exception e) {
@@ -189,11 +201,11 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
     ZKRegistrationHandle h = (ZKRegistrationHandle) handle;
     try {
       ServiceInstance<DrillbitEndpoint> serviceInstance = ServiceInstance.<DrillbitEndpoint>builder()
-        .address("")
-        .port(0)
-        .id(h.id)
-        .name(serviceName)
-        .build();
+              .address("")
+              .port(0)
+              .id(h.id)
+              .name(serviceName)
+              .build();
       discovery.unregisterService(serviceInstance);
     } catch (Exception e) {
       propagate(e);
@@ -213,20 +225,20 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
 
   @Override
   public <V> TransientStore<V> getOrCreateTransientStore(final TransientStoreConfig<V> config) {
-    final ZkEphemeralStore<V> store = (ZkEphemeralStore<V>)factory.getOrCreateStore(config);
+    final ZkEphemeralStore<V> store = (ZkEphemeralStore<V>) factory.getOrCreateStore(config);
     return store;
   }
 
   private synchronized void updateEndpoints() {
     try {
       Collection<DrillbitEndpoint> newDrillbitSet =
-      transform(discovery.queryForInstances(serviceName),
-        new Function<ServiceInstance<DrillbitEndpoint>, DrillbitEndpoint>() {
-          @Override
-          public DrillbitEndpoint apply(ServiceInstance<DrillbitEndpoint> input) {
-            return input.getPayload();
-          }
-        });
+              transform(discovery.queryForInstances(serviceName),
+                      new Function<ServiceInstance<DrillbitEndpoint>, DrillbitEndpoint>() {
+                        @Override
+                        public DrillbitEndpoint apply(ServiceInstance<DrillbitEndpoint> input) {
+                          return input.getPayload();
+                        }
+                      });
 
       // set of newly dead bits : original bits - new set of active bits.
       Set<DrillbitEndpoint> unregisteredBits = new HashSet<>(endpoints);
@@ -244,7 +256,7 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
         builder.append(newDrillbitSet.size());
         builder.append(" total bits. New active drillbits:\n");
         builder.append("Address | User Port | Control Port | Data Port | Version |\n");
-        for (DrillbitEndpoint bit: newDrillbitSet) {
+        for (DrillbitEndpoint bit : newDrillbitSet) {
           builder.append(bit.getAddress()).append(" | ");
           builder.append(bit.getUserPort()).append(" | ");
           builder.append(bit.getControlPort()).append(" | ");
@@ -270,19 +282,19 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
 
   protected ServiceInstance<DrillbitEndpoint> newServiceInstance(DrillbitEndpoint endpoint) throws Exception {
     return ServiceInstance.<DrillbitEndpoint>builder()
-      .name(serviceName)
-      .payload(endpoint)
-      .build();
+            .name(serviceName)
+            .payload(endpoint)
+            .build();
   }
 
 
   protected ServiceDiscovery<DrillbitEndpoint> newDiscovery() {
     return ServiceDiscoveryBuilder
-      .builder(DrillbitEndpoint.class)
-      .basePath("/")
-      .client(curator)
-      .serializer(DrillServiceInstanceHelper.SERIALIZER)
-      .build();
+            .builder(DrillbitEndpoint.class)
+            .basePath("/")
+            .client(curator)
+            .serializer(DrillServiceInstanceHelper.SERIALIZER)
+            .build();
   }
 
 }
